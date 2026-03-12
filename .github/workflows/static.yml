@@ -33,10 +33,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Copy results to docs
+        run: |
+          cp -r results docs/
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
+          # Upload docs directory (includes index.html and results/)
           path: 'docs/'
       - name: Deploy to GitHub Pages
         id: deployment
