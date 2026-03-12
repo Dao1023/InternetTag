@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>规则匹配分析 - InternetTag</title>
+    <title>分析结果查看器 - InternetTag</title>
     <style>
         * {
             margin: 0;
@@ -253,10 +253,17 @@
 </head>
 <body>
     <div class="header">
-        <a href="index.html" class="back-link">← 返回首页</a>
-        <h1>📋 规则匹配分析结果</h1>
-        <p>基于人工定义的11个分类规则进行关键词分类</p>
-        <div class="stats-grid">
+        <h1 id="methodTitle">🏷️ 关键词分析结果查看器</h1>
+        <p id="methodDesc">支持规则匹配、TF-IDF聚类、Qwen3-Embedding等分类方法</p>
+        <div class="stats-grid" id="statsGrid" style="display: none;">
+            <div class="stat-card">
+                <div class="label">分类方法</div>
+                <div class="value" id="methodName">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">模型/算法</div>
+                <div class="value" id="modelInfo">-</div>
+            </div>
             <div class="stat-card">
                 <div class="label">总关键词数</div>
                 <div class="value" id="totalKeywords">-</div>
@@ -277,22 +284,27 @@
         <div id="dropZone" style="
             border: 3px dashed #667eea;
             border-radius: 15px;
-            padding: 40px;
+            padding: 50px 40px;
             text-align: center;
             background: #f8f9ff;
             transition: all 0.3s;
             cursor: pointer;
         ">
-            <div style="font-size: 3em; margin-bottom: 15px;">📂</div>
-            <div style="font-size: 1.1em; color: #667eea; margin-bottom: 10px;">
+            <div style="font-size: 3.5em; margin-bottom: 20px;">📂</div>
+            <div style="font-size: 1.3em; color: #667eea; margin-bottom: 12px; font-weight: bold;">
                 拖拽 JSON 文件到这里
             </div>
+            <div style="font-size: 1em; color: #666; margin-bottom: 8px;">
+                支持的分析结果：
+            </div>
             <div style="font-size: 0.9em; color: #999;">
+                analysis_result.json | clustering_result.json | qwen_embedding_result.json
+            </div>
+            <div style="font-size: 0.9em; color: #999; margin-top: 15px;">
                 或点击选择文件
             </div>
             <input type="file" id="fileInput" accept=".json" style="display: none;">
         </div>
-        <p style="margin-top: 10px; font-size: 0.9em; color: #999;">请选择 results/analysis_result.json</p>
     </div>
 
     <div class="search-box" id="searchBox" style="display: none;">
@@ -355,6 +367,19 @@
 
         function renderData() {
             document.getElementById('loading').style.display = 'none';
+
+            // 显示统计信息区域
+            document.getElementById('statsGrid').style.display = 'grid';
+
+            // 显示方法和模型信息
+            if (data.method) {
+                document.getElementById('methodName').textContent = data.method;
+                document.getElementById('methodTitle').textContent = '📊 ' + data.method;
+            }
+            if (data.model) {
+                document.getElementById('modelInfo').textContent = data.model;
+            }
+
             document.getElementById('totalKeywords').textContent = data.total_keywords.toLocaleString();
             document.getElementById('totalWeight').textContent = data.total_weight.toLocaleString();
             document.getElementById('categoryCount').textContent = Object.keys(data.category_stats).length;

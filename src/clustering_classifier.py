@@ -219,21 +219,30 @@ def main():
         else:
             cluster_names[cluster_id] = f"聚类{cluster_id}"
 
-    # 保存结果
-    result = {
-        'n_clusters': n_clusters,
-        'inertia': float(kmeans.inertia_),
-        'clusters': {}
-    }
+    # 保存结果 - 使用统一的JSON格式
+    category_stats = {}
+    category_keywords = {}
 
     for cluster_id, info in cluster_info.items():
-        result['clusters'][cluster_names[cluster_id]] = {
-            'size': info['size'],
-            'total_weight': info['total_weight'],
-            'top_features': info['top_features'],
-            'top_keywords': [(kw, w) for kw, w in info['top_keywords']],
-            'all_keywords': [(kw, w) for kw, w in info['all_keywords']]
+        cluster_name = cluster_names[cluster_id]
+        category_stats[cluster_name] = info['total_weight']
+        category_keywords[cluster_name] = [(kw, w) for kw, w in info['all_keywords']]
+
+    result = {
+        'method': 'TF-IDF + K-means 聚类',
+        'model': f'K-means (k={n_clusters})',
+        'total_keywords': len(keywords),
+        'total_weight': total_weight,
+        'category_stats': category_stats,
+        'category_keywords': category_keywords,
+        # 聚类特定的额外信息
+        'n_clusters': n_clusters,
+        'inertia': float(kmeans.inertia_),
+        'cluster_features': {
+            cluster_names[cluster_id]: info['top_features']
+            for cluster_id, info in cluster_info.items()
         }
+    }
 
     output_path = r"C:\Users\Dao\Code\InternetTag\results\clustering_result.json"
     with open(output_path, 'w', encoding='utf-8') as f:
