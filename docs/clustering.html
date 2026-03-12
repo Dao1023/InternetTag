@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聚类分析 - InternetTag</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .header .back-link {
+            color: white;
+            text-decoration: none;
+            display: inline-block;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .header .back-link:hover {
+            opacity: 1;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-card .label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .stat-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .search-box {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e1e8ed;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #f5576c;
+        }
+
+        .clusters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .cluster-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+
+        .cluster-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .cluster-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .cluster-name {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .cluster-stats {
+            text-align: right;
+        }
+
+        .cluster-weight {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        .cluster-percentage {
+            font-size: 0.9em;
+            color: #999;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f093fb 0%, #f5576c 100%);
+            transition: width 0.5s;
+        }
+
+        .features-list {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #fff5f7;
+            border-radius: 8px;
+        }
+
+        .features-label {
+            font-size: 0.85em;
+            color: #f5576c;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        .features-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .feature-tag {
+            background: white;
+            padding: 4px 10px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            color: #666;
+        }
+
+        .keywords-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .keyword-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 5px;
+            background: #f8f9fa;
+        }
+
+        .keyword-item:hover {
+            background: #e9ecef;
+        }
+
+        .keyword-name {
+            color: #495057;
+        }
+
+        .keyword-count {
+            color: #f5576c;
+            font-weight: bold;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 100%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.8em;
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: #999;
+            line-height: 1;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #999;
+        }
+
+        .error {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            color: #856404;
+        }
+
+        .cluster-info {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .cluster-info-item {
+            text-align: center;
+        }
+
+        .cluster-info-label {
+            font-size: 0.85em;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .cluster-info-value {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #f5576c;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="index.html" class="back-link">← 返回首页</a>
+        <h1>🤖 聚类分析结果</h1>
+        <p>使用TF-IDF + K-means算法自动发现关键词模式</p>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">聚类数量</div>
+                <div class="value" id="clusterCount">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">惯性值</div>
+                <div class="value" id="inertia">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">算法类型</div>
+                <div class="value">K-means</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="search-box" id="uploadBox">
+        <label style="display: block; margin-bottom: 10px; font-weight: bold;">📁 上传分析结果文件</label>
+        <div id="dropZone" style="
+            border: 3px dashed #f5576c;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            background: #fff5f7;
+            transition: all 0.3s;
+            cursor: pointer;
+        ">
+            <div style="font-size: 3em; margin-bottom: 15px;">📂</div>
+            <div style="font-size: 1.1em; color: #f5576c; margin-bottom: 10px;">
+                拖拽 JSON 文件到这里
+            </div>
+            <div style="font-size: 0.9em; color: #999;">
+                或点击选择文件
+            </div>
+            <input type="file" id="fileInput" accept=".json" style="display: none;">
+        </div>
+        <p style="margin-top: 10px; font-size: 0.9em; color: #999;">请选择 results/clustering_result.json</p>
+    </div>
+
+    <div class="search-box" id="searchBox" style="display: none;">
+        <input type="text" id="searchInput" placeholder="🔍 搜索关键词...">
+    </div>
+
+    <div id="loading" class="loading">请上传文件并点击加载数据</div>
+    <div id="error" class="error" style="display:none"></div>
+    <div class="clusters-grid" id="clustersGrid"></div>
+
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title" id="modalTitle">聚类详情</h2>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        let data = null;
+        let filteredData = null;
+        let totalWeight = 0;
+
+        function loadDataFromFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                alert('请选择一个JSON文件');
+                return;
+            }
+
+            document.getElementById('loading').textContent = '加载中...';
+            document.getElementById('loading').style.display = 'block';
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    data = JSON.parse(e.target.result);
+                    totalWeight = Object.values(data.clusters)
+                        .reduce((sum, cluster) => sum + cluster.total_weight, 0);
+                    filteredData = data;
+                    renderData();
+
+                    // 显示搜索框，隐藏上传框
+                    document.getElementById('uploadBox').style.display = 'none';
+                    document.getElementById('searchBox').style.display = 'block';
+                } catch (error) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('error').style.display = 'block';
+                    document.getElementById('error').textContent = '解析JSON失败: ' + error.message;
+                    console.error('Error parsing JSON:', error);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        async function loadData() {
+            loadDataFromFile();
+        }
+
+        function renderData() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('clusterCount').textContent = data.n_clusters;
+            document.getElementById('inertia').textContent = data.inertia.toFixed(2);
+
+            renderClusters(data.clusters);
+        }
+
+        function renderClusters(clusters) {
+            const grid = document.getElementById('clustersGrid');
+            grid.innerHTML = '';
+
+            const sorted = Object.entries(clusters)
+                .sort((a, b) => b[1].total_weight - a[1].total_weight);
+
+            sorted.forEach(([clusterName, clusterData]) => {
+                const percentage = ((clusterData.total_weight / totalWeight) * 100).toFixed(2);
+
+                const card = document.createElement('div');
+                card.className = 'cluster-card';
+                card.innerHTML = `
+                    <div class="cluster-header">
+                        <div class="cluster-name">${clusterName}</div>
+                        <div class="cluster-stats">
+                            <div class="cluster-weight">${clusterData.total_weight.toLocaleString()}</div>
+                            <div class="cluster-percentage">${percentage}%</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${percentage}%"></div>
+                    </div>
+                    <div class="features-list">
+                        <div class="features-label">🎯 核心特征词</div>
+                        <div class="features-tags">
+                            ${clusterData.top_features.slice(0, 5).map(f =>
+                                `<span class="feature-tag">${f}</span>`
+                            ).join('')}
+                        </div>
+                    </div>
+                    <div class="keywords-list">
+                        ${clusterData.top_keywords.slice(0, 6).map(([kw, count]) => `
+                            <div class="keyword-item">
+                                <span class="keyword-name">${kw}</span>
+                                <span class="keyword-count">${count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+
+                card.onclick = () => showClusterDetail(clusterName, clusterData);
+                grid.appendChild(card);
+            });
+        }
+
+        function showClusterDetail(clusterName, clusterData) {
+            const percentage = ((clusterData.total_weight / totalWeight) * 100).toFixed(2);
+
+            document.getElementById('modalTitle').textContent = clusterName;
+            document.getElementById('modalBody').innerHTML = `
+                <div class="cluster-info">
+                    <div class="cluster-info-item">
+                        <div class="cluster-info-label">关键词数量</div>
+                        <div class="cluster-info-value">${clusterData.size}</div>
+                    </div>
+                    <div class="cluster-info-item">
+                        <div class="cluster-info-label">总权重</div>
+                        <div class="cluster-info-value">${clusterData.total_weight.toLocaleString()}</div>
+                    </div>
+                    <div class="cluster-info-item">
+                        <div class="cluster-info-label">占比</div>
+                        <div class="cluster-info-value">${percentage}%</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px; padding: 15px; background: #fff5f7; border-radius: 10px;">
+                    <div style="font-weight: bold; margin-bottom: 10px; color: #f5576c;">🎯 核心特征词</div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                        ${clusterData.top_features.map(f =>
+                            `<span style="background: white; padding: 6px 14px; border-radius: 20px; font-size: 0.9em;">${f}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+
+                <h3 style="margin-bottom: 15px;">📊 Top 关键词 (Top 20)</h3>
+                <div class="keywords-list" style="max-height: 400px;">
+                    ${clusterData.top_keywords.map(([kw, count]) => `
+                        <div class="keyword-item">
+                            <span class="keyword-name">${kw}</span>
+                            <span class="keyword-count">${count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <h3 style="margin: 20px 0 15px;">📋 所有关键词 (${clusterData.size}个)</h3>
+                <div class="keywords-list" style="max-height: 400px;">
+                    ${clusterData.all_keywords.map(([kw, count]) => `
+                        <div class="keyword-item">
+                            <span class="keyword-name">${kw}</span>
+                            <span class="keyword-count">${count}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+
+        // 搜索功能
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const query = e.target.value.toLowerCase().trim();
+            if (!data) return;
+
+            if (!query) {
+                renderClusters(data.clusters);
+            } else {
+                const filtered = {};
+                for (const [name, clusterData] of Object.entries(data.clusters)) {
+                    const matchedKeywords = clusterData.all_keywords.filter(([kw]) =>
+                        kw.toLowerCase().includes(query)
+                    );
+                    if (matchedKeywords.length > 0) {
+                        filtered[name] = {
+                            ...clusterData,
+                            all_keywords: matchedKeywords,
+                            top_keywords: matchedKeywords.slice(0, 20),
+                            size: matchedKeywords.length,
+                            total_weight: matchedKeywords.reduce((sum, [, c]) => sum + c, 0)
+                        };
+                    }
+                }
+                renderClusters(filtered);
+            }
+        });
+
+        // 拖拽功能
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+
+        // 点击上传
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', () => {
+            if (fileInput.files.length > 0) {
+                loadDataFromFile();
+            }
+        });
+
+        // 拖拽事件
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#f093fb';
+            dropZone.style.background = '#ffe5ec';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#f5576c';
+            dropZone.style.background = '#fff5f7';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#f5576c';
+            dropZone.style.background = '#fff5f7';
+
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                const file = files[0];
+                if (file.name.endsWith('.json')) {
+                    fileInput.files = files;
+                    loadDataFromFile();
+                } else {
+                    alert('请上传JSON文件');
+                }
+            }
+        });
+
+        // 点击模态框外部关闭
+        document.getElementById('modal').addEventListener('click', function(e) {
+            if (e.target === this) closeModal();
+        });
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        // 加载数据
+    </script>
+</body>
+</html>
