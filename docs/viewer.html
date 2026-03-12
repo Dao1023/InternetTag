@@ -280,30 +280,61 @@
     </div>
 
     <div class="search-box" id="uploadBox">
-        <label style="display: block; margin-bottom: 10px; font-weight: bold;">📁 上传分析结果文件</label>
-        <div id="dropZone" style="
-            border: 3px dashed #667eea;
-            border-radius: 15px;
-            padding: 50px 40px;
-            text-align: center;
-            background: #f8f9ff;
-            transition: all 0.3s;
-            cursor: pointer;
-        ">
-            <div style="font-size: 3.5em; margin-bottom: 20px;">📂</div>
-            <div style="font-size: 1.3em; color: #667eea; margin-bottom: 12px; font-weight: bold;">
-                拖拽 JSON 文件到这里
+        <label style="display: block; margin-bottom: 10px; font-weight: bold;">📁 加载分析结果文件</label>
+
+        <!-- 文件选择下拉菜单 -->
+        <div style="margin-bottom: 20px;">
+            <select id="jsonSelect" style="
+                width: 100%;
+                padding: 12px;
+                border: 2px solid #667eea;
+                border-radius: 10px;
+                font-size: 1em;
+                background: white;
+                cursor: pointer;
+            ">
+                <option value="">-- 选择要查看的结果文件 --</option>
+                <option value="../results/analysis_result.json">analysis_result.json (规则匹配)</option>
+                <option value="../results/clustering_result.json">clustering_result.json (TF-IDF聚类)</option>
+                <option value="../results/qwen_embedding_result.json">qwen_embedding_result.json (Qwen3-Embedding)</option>
+                <option value="../results/qwen_clustering_result.json">qwen_clustering_result.json (Qwen3聚类)</option>
+            </select>
+            <button onclick="loadSelectedJSON()" style="
+                margin-top: 10px;
+                width: 100%;
+                padding: 12px;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size: 1em;
+                cursor: pointer;
+                transition: opacity 0.3s;
+            " onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
+                加载选中文件
+            </button>
+        </div>
+
+        <div style="border-top: 1px solid #e1e8ed; padding-top: 20px;">
+            <label style="display: block; margin-bottom: 10px; font-weight: bold; color: #666;">📂 或上传本地文件</label>
+            <div id="dropZone" style="
+                border: 3px dashed #667eea;
+                border-radius: 15px;
+                padding: 40px 30px;
+                text-align: center;
+                background: #f8f9ff;
+                transition: all 0.3s;
+                cursor: pointer;
+            ">
+                <div style="font-size: 2.5em; margin-bottom: 15px;">📂</div>
+                <div style="font-size: 1.1em; color: #667eea; margin-bottom: 8px; font-weight: bold;">
+                    拖拽 JSON 文件到这里
+                </div>
+                <div style="font-size: 0.85em; color: #999;">
+                    或点击选择文件
+                </div>
+                <input type="file" id="fileInput" accept=".json" style="display: none;">
             </div>
-            <div style="font-size: 1em; color: #666; margin-bottom: 8px;">
-                支持的分析结果：
-            </div>
-            <div style="font-size: 0.9em; color: #999;">
-                analysis_result.json | clustering_result.json | qwen_embedding_result.json
-            </div>
-            <div style="font-size: 0.9em; color: #999; margin-top: 15px;">
-                或点击选择文件
-            </div>
-            <input type="file" id="fileInput" accept=".json" style="display: none;">
         </div>
     </div>
 
@@ -351,6 +382,9 @@
                     // 显示搜索框，隐藏上传框
                     document.getElementById('uploadBox').style.display = 'none';
                     document.getElementById('searchBox').style.display = 'block';
+
+                    // 添加切换文件按钮
+                    addSwitchFileButton();
                 } catch (error) {
                     document.getElementById('loading').style.display = 'none';
                     document.getElementById('error').style.display = 'block';
@@ -359,6 +393,95 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // 加载选中的JSON文件（跨文件夹访问）
+        async function loadSelectedJSON() {
+            const select = document.getElementById('jsonSelect');
+            const filePath = select.value;
+
+            if (!filePath) {
+                alert('请选择一个JSON文件');
+                return;
+            }
+
+            document.getElementById('loading').textContent = '加载中...';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+
+            try {
+                const response = await fetch(filePath);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const jsonData = await response.json();
+                data = jsonData;
+                filteredData = data;
+                renderData();
+
+                // 显示搜索框，隐藏上传框
+                document.getElementById('uploadBox').style.display = 'none';
+                document.getElementById('searchBox').style.display = 'block';
+
+                // 添加切换文件按钮
+                addSwitchFileButton();
+
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('error').style.display = 'block';
+                document.getElementById('error').textContent = '加载JSON失败: ' + error.message + '\n\n请确保通过HTTP服务器访问此页面（如: python -m http.server）';
+                console.error('Error loading JSON:', error);
+            }
+        }
+
+        // 添加切换文件按钮
+        function addSwitchFileButton() {
+            // 检查是否已存在切换按钮
+            if (document.getElementById('switchFileBtn')) return;
+
+            const searchBox = document.getElementById('searchBox');
+            const switchBtn = document.createElement('button');
+            switchBtn.id = 'switchFileBtn';
+            switchBtn.textContent = '📁 切换文件';
+            switchBtn.style.cssText = `
+                margin-top: 10px;
+                padding: 8px 16px;
+                background: #667eea;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                cursor: pointer;
+                font-size: 0.9em;
+                transition: background 0.3s;
+            `;
+            switchBtn.onmouseover = () => switchBtn.style.background = '#764ba2';
+            switchBtn.onmouseout = () => switchBtn.style.background = '#667eea';
+            switchBtn.onclick = resetView;
+
+            searchBox.appendChild(switchBtn);
+        }
+
+        // 重置视图，返回文件选择界面
+        function resetView() {
+            data = null;
+            filteredData = null;
+
+            // 清空显示
+            document.getElementById('categoriesGrid').innerHTML = '';
+            document.getElementById('statsGrid').style.display = 'none';
+            document.getElementById('methodTitle').textContent = '🏷️ 关键词分析结果查看器';
+            document.getElementById('methodDesc').textContent = '支持规则匹配、TF-IDF聚类、Qwen3-Embedding等分类方法';
+            document.getElementById('loading').textContent = '请上传文件并点击加载数据';
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('error').style.display = 'none';
+
+            // 显示上传框，隐藏搜索框
+            document.getElementById('uploadBox').style.display = 'block';
+            document.getElementById('searchBox').style.display = 'none';
+
+            // 重置选择框
+            document.getElementById('jsonSelect').value = '';
+            document.getElementById('fileInput').value = '';
         }
 
         async function loadData() {
