@@ -428,6 +428,9 @@
             sorted.forEach(([clusterName, clusterData]) => {
                 const percentage = ((clusterData.total_weight / totalWeight) * 100).toFixed(2);
 
+                // 确保关键词按权重降序排序
+                const sortedKeywords = [...clusterData.top_keywords].sort((a, b) => b[1] - a[1]);
+
                 const card = document.createElement('div');
                 card.className = 'cluster-card';
                 card.innerHTML = `
@@ -450,7 +453,7 @@
                         </div>
                     </div>
                     <div class="keywords-list">
-                        ${clusterData.top_keywords.slice(0, 6).map(([kw, count]) => `
+                        ${sortedKeywords.slice(0, 6).map(([kw, count]) => `
                             <div class="keyword-item">
                                 <span class="keyword-name">${kw}</span>
                                 <span class="keyword-count">${count}</span>
@@ -466,6 +469,10 @@
 
         function showClusterDetail(clusterName, clusterData) {
             const percentage = ((clusterData.total_weight / totalWeight) * 100).toFixed(2);
+
+            // 确保关键词按权重降序排序
+            const sortedTopKeywords = [...clusterData.top_keywords].sort((a, b) => b[1] - a[1]);
+            const sortedAllKeywords = [...clusterData.all_keywords].sort((a, b) => b[1] - a[1]);
 
             document.getElementById('modalTitle').textContent = clusterName;
             document.getElementById('modalBody').innerHTML = `
@@ -495,7 +502,7 @@
 
                 <h3 style="margin-bottom: 15px;">📊 Top 关键词 (Top 20)</h3>
                 <div class="keywords-list" style="max-height: 400px;">
-                    ${clusterData.top_keywords.map(([kw, count]) => `
+                    ${sortedTopKeywords.map(([kw, count]) => `
                         <div class="keyword-item">
                             <span class="keyword-name">${kw}</span>
                             <span class="keyword-count">${count}</span>
@@ -505,7 +512,7 @@
 
                 <h3 style="margin: 20px 0 15px;">📋 所有关键词 (${clusterData.size}个)</h3>
                 <div class="keywords-list" style="max-height: 400px;">
-                    ${clusterData.all_keywords.map(([kw, count]) => `
+                    ${sortedAllKeywords.map(([kw, count]) => `
                         <div class="keyword-item">
                             <span class="keyword-name">${kw}</span>
                             <span class="keyword-count">${count}</span>
@@ -534,6 +541,8 @@
                         kw.toLowerCase().includes(query)
                     );
                     if (matchedKeywords.length > 0) {
+                        // 按权重降序排序
+                        matchedKeywords.sort((a, b) => b[1] - a[1]);
                         filtered[name] = {
                             ...clusterData,
                             all_keywords: matchedKeywords,
