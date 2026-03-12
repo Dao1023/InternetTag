@@ -8,4 +8,10 @@ dependencies = [
     "jieba>=0.42.1",
     "numpy>=2.4.3",
     "scikit-learn>=1.8.0",
+    "sentence-transformers>=2.7.0",
+    "transformers>=4.51.0",
 ]
+
+[[tool.uv.index]]
+url = "https://mirrors.aliyun.com/pypi/simple"
+default = true
