@@ -7,6 +7,7 @@ from pathlib import Path
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from collections import defaultdict
 from tqdm import tqdm
 
@@ -82,25 +83,68 @@ def auto_name_category(keywords_with_weights, embeddings, cluster_center, top_n=
         return top_keywords[0] if top_keywords else f"类别_{len(keywords_with_weights)}"
 
 
-def classify_with_clustering(keywords, n_clusters=None):
+def classify_with_clustering(keywords, n_clusters=None, pca_components=50, use_cache=True):
     """使用Qwen3-Embedding + K-means聚类进行分类"""
-    print("📦 加载Qwen3-Embedding模型...")
-    model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
-
-    # 批量编码所有关键词
-    print(f"🔤 编码 {len(keywords)} 个关键词...")
     keyword_list = list(keywords.keys())
-    batch_size = 128
+    cache_dir = Path(__file__).parent.parent.parent / "results" / "cache"
+    cache_dir.mkdir(exist_ok=True)
+    cache_file = cache_dir / "qwen_embeddings_cache.npy"
 
-    all_embeddings = []
-    with tqdm(total=len(keyword_list), desc="编码进度", unit="关键词") as pbar:
-        for i in range(0, len(keyword_list), batch_size):
-            batch = keyword_list[i:i + batch_size]
-            embeddings = model.encode(batch, normalize_embeddings=True)
-            all_embeddings.append(embeddings)
-            pbar.update(len(batch))
+    # 检查缓存
+    embeddings = None
+    if use_cache and cache_file.exists():
+        print(f"📥 发现缓存文件: {cache_file}")
+        try:
+            cached_data = np.load(cache_file, allow_pickle=True).item()
+            cached_keywords = cached_data['keywords']
+            cached_embeddings = cached_data['embeddings']
 
-    embeddings = np.vstack(all_embeddings)
+            # 验证缓存是否匹配
+            if cached_keywords == keyword_list:
+                print("✅ 缓存有效，跳过编码")
+                embeddings = cached_embeddings
+            else:
+                print("⚠️  缓存关键词不匹配，重新编码")
+        except Exception as e:
+            print(f"⚠️  缓存读取失败: {e}")
+
+    # 如果没有缓存或缓存无效，进行编码
+    if embeddings is None:
+        print("📦 加载Qwen3-Embedding模型...")
+        model = SentenceTransformer("Qwen/Qwen3-Embedding-0.6B")
+
+        # 批量编码所有关键词
+        print(f"🔤 编码 {len(keywords)} 个关键词...")
+        batch_size = 128
+
+        all_embeddings = []
+        with tqdm(total=len(keyword_list), desc="编码进度", unit="关键词") as pbar:
+            for i in range(0, len(keyword_list), batch_size):
+                batch = keyword_list[i:i + batch_size]
+                batch_embeddings = model.encode(batch, normalize_embeddings=True)
+                all_embeddings.append(batch_embeddings)
+                pbar.update(len(batch))
+
+        embeddings = np.vstack(all_embeddings)
+
+        # 保存缓存
+        print(f"💾 保存缓存到: {cache_file}")
+        cache_data = {
+            'keywords': keyword_list,
+            'embeddings': embeddings
+        }
+        np.save(cache_file, cache_data)
+        print("✅ 缓存已保存")
+
+    print(f"📐 原始维度: {embeddings.shape}")
+
+    # PCA降维
+    if pca_components and pca_components < embeddings.shape[1]:
+        print(f"🔽 PCA降维: {embeddings.shape[1]} → {pca_components}")
+        pca = PCA(n_components=pca_components, random_state=42)
+        embeddings = pca.fit_transform(embeddings)
+        print(f"   解释方差比: {pca.explained_variance_ratio_.sum():.2%}")
+        print(f"📐 降维后: {embeddings.shape}")
 
     # 确定聚类数量
     if n_clusters is None:
@@ -153,15 +197,15 @@ def main():
     print(f"✅ 解析完成，共 {len(keywords)} 个关键词")
     print(f"📊 总权重: {sum(keywords.values()):,}")
 
-    # 使用聚类分类
-    results = classify_with_clustering(keywords, n_clusters=15)
+    # 使用聚类分类（带PCA降维）
+    results = classify_with_clustering(keywords, n_clusters=15, pca_components=50)
 
     # 计算统计信息
     total_keywords = len(keywords)
     total_weight = sum(keywords.values())
 
     print(f"\n{'='*60}")
-    print(f"📊 聚类统计 (Qwen3-Embedding + K-means)")
+    print(f"📊 聚类统计 (Qwen3-Embedding + PCA + K-means)")
     print(f"{'='*60}")
 
     # 按权重排序
@@ -184,8 +228,8 @@ def main():
 
     # 保存结果
     output = {
-        "method": "Qwen3-Embedding + K-means 聚类",
-        "model": "Qwen/Qwen3-Embedding-0.6B + K-means (k=15)",
+        "method": "Qwen3-Embedding + PCA + K-means 聚类",
+        "model": "Qwen/Qwen3-Embedding-0.6B + PCA(50维) + K-means (k=15)",
         "total_keywords": total_keywords,
         "total_weight": total_weight,
         "category_stats": category_stats,
