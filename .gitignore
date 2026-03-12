@@ -24,5 +24,9 @@ tmpclaude-*
 Thumbs.db
 
 # Data and results
-data/
-results/
+# data/        # 取消注释：保留数据目录
+# results/     # 取消注释：保留结果目录
+
+# 排除numpy缓存文件
+results/cache/*.npy
+*.npy
