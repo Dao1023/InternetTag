@@ -2,7 +2,7 @@
 
 互联网关键词分析项目 - 通过分析各领域关键词了解互联网动向
 
-预览：https://github.com/Dao1023/InternetTag
+预览：[https://github.com/Dao1023/InternetTag](https://dao1023.github.io/InternetTag/)
 
 ## 项目结构
 
